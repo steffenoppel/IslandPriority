@@ -28,41 +28,6 @@ load("GLOBAL_ISLAND_INPUT.RData")
 
 #####################################################################################################################################################
 #
-# STUFF TO BE REMOVED FOR SUPPLEMENTARY MATERIAL (but retained to maintain functionality)
-# 
-#####################################################################################################################################################
-library(RODBC)
-setwd("A:\\MANUSCRIPTS\\in_prep\\IC_eradication_evaluation")  ##Steffen's location
-setwd("C:\\STEFFEN\\MANUSCRIPTS\\in_prep\\IC_eradication_evaluation")  ###Steffen's location
-setwd("C:\\Users\\nholmes\\Dropbox\\Islands2")
-IR <- odbcConnectAccess2007('GP_May2016.accdb')
-islands <- sqlQuery(IR, "SELECT * FROM export_islands")
-natives <- sqlQuery(IR, "SELECT * FROM export_natives")
-aliens <- sqlQuery(IR, "SELECT * FROM export_aliens")
-interactions <- sqlQuery(IR, "SELECT * FROM Interactions")
-EF <- sqlQuery(IR, "SELECT * FROM EradFeasibility")
-islpops<- sqlQuery(IR, "SELECT * FROM Nom_hum_hab_conversion") #defines population size max for each category
-odbcClose(IR)
-head(islands)
-names(islands)[c(1,6,9)]<-c("Island_Code","Area","Population_size")
-head(aliens)
-names(aliens)[1]<-"Island_Code"
-head(natives)
-names(natives)[1:6]<-c("Island_Code","Animal_type","Scientific_name","IUCN","ExtinctRisk","Irreplace")
-head(interactions)
-names(interactions)[1:5]<-c("Island_Code",'Target_Species',"IUCN",'Invasive_Species','impact_score')
-head(islpops)
-names(islpops)[2:3]<-c("Human_Habitation_Category","Population_size")
-island_codes<-unique(islands$Island_Code)						## extracts the unique Island_Codes into a separate vector
-save.image("GLOBAL_ISLAND_INPUT.RData")
-
-
-
-
-
-
-#####################################################################################################################################################
-#
 # ERADICATION FEASIBILITY DEPENDING ON SPECIES, ISLAND SIZE, HUMAN HABITATION
 # 
 #####################################################################################################################################################
