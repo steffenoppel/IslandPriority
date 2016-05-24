@@ -160,4 +160,4 @@ OUTPUT<-merge(FINAL_SCORES, islands, by='Island_Code', all.x=T)			## create outp
 OUTPUT$General_Rank<-rank(-OUTPUT$CV_now, ties.method = "min")			## ranking based on benefit from eradication ALL invasive vertebrates					
 OUTPUT$Specific_Rank<-rank(-OUTPUT$BENEFIT_SPECIFIC, ties.method = "min")	## ranking based on benefit from eradication of feasible invasive ve
 OUTPUT<-OUTPUT[order(OUTPUT$Specific_Rank),]
-OUTPUT[1:20,c(18,8,9,2:7,12,15)]
+OUTPUT[1:20,c(18,8,9,2,3,6,7,12,15)]
