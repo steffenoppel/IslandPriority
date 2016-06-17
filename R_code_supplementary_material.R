@@ -28,6 +28,41 @@ load("GLOBAL_ISLAND_INPUT.RData")
 
 #####################################################################################################################################################
 #
+# STUFF TO BE REMOVED FOR SUPPLEMENTARY MATERIAL (but retained to maintain functionality)
+# 
+#####################################################################################################################################################
+library(RODBC)
+setwd("A:\\MANUSCRIPTS\\in_prep\\IC_eradication_evaluation")  ##Steffen's location
+setwd("C:\\STEFFEN\\MANUSCRIPTS\\in_prep\\IC_eradication_evaluation")  ###Steffen's location
+setwd("C:\\Users\\nholmes\\Dropbox\\Islands2")
+IR <- odbcConnectAccess2007('GP_June2016.accdb')
+islands <- sqlQuery(IR, "SELECT * FROM export_islands")
+natives <- sqlQuery(IR, "SELECT * FROM export_natives")
+aliens <- sqlQuery(IR, "SELECT * FROM export_aliens")
+interactions <- sqlQuery(IR, "SELECT * FROM Interactions")
+EF <- sqlQuery(IR, "SELECT * FROM EradFeasibility")
+islpops<- sqlQuery(IR, "SELECT * FROM Nom_hum_hab_conversion") #defines population size max for each category
+odbcClose(IR)
+head(islands)
+names(islands)[c(1,6,9)]<-c("Island_Code","Area","Population_size")
+head(aliens)
+names(aliens)[1]<-"Island_Code"
+head(natives)
+names(natives)[1:6]<-c("Island_Code","Animal_type","Scientific_name","IUCN","ExtinctRisk","Irreplace")
+head(interactions)
+names(interactions)[1:5]<-c("Island_Code",'Target_Species',"IUCN",'Invasive_Species','impact_score')
+head(islpops)
+names(islpops)[2:3]<-c("Human_Habitation_Category","Population_size")
+island_codes<-unique(islands$Island_Code)						## extracts the unique Island_Codes into a separate vector
+save.image("GLOBAL_ISLAND_INPUT_2.RData")
+
+
+
+
+
+
+#####################################################################################################################################################
+#
 # ERADICATION FEASIBILITY DEPENDING ON SPECIES, ISLAND SIZE, HUMAN HABITATION
 # 
 #####################################################################################################################################################
@@ -56,7 +91,9 @@ aliens$EF[is.na(aliens$Human_Habitation_Number)]<-0
 #####################################################################################################################################################
 
 ## create blank table in which output is stored
-FINAL_SCORES<-data.frame(Island_Code=island_codes, n_natives=0, n_aliens=0, CV_now=0, CV_erad=0, BENEFIT_SPECIFIC=0, BENEFIT_GENERAL=0)
+FINAL_SCORES<-data.frame(Island_Code=island_codes, n_natives=0, n_aliens=0, CV_now=0, CV_erad=0,BENEFIT_SPECIFIC=0, BENEFIT_GENERAL=0,
+					invasives=NA, invasives_erad=NA, threatened=NA, threatened_benefit=NA,
+					sum_irreplace=0, sum_extrisk=0, sum_severity=0,sum_severity_erad=0)
 
 ## Start loop over every island (n=2415)
 for (i in 1:length(island_codes)){							
@@ -72,8 +109,12 @@ isl_interactions<-interactions[interactions$Target_Species %in% targ$Scientific_
 isl_interactions<-isl_interactions[isl_interactions$Invasive_Species %in% ias$Scientific_Name,]	## takes subset of interactions for the invasives on an island
 isl_interactions<-isl_interactions[isl_interactions$Island_Code==island_codes[i],]		## takes subset of interactions for the island
 
-FINAL_SCORES$n_natives[FINAL_SCORES$Island_Code==island_codes[i]]<-dim(targ)[1]			## writes the number of native species on an island into output table
+FINAL_SCORES$n_natives[FINAL_SCORES$Island_Code==island_codes[i]]<-dim(targ)[1]		## writes the number of native species on an island into output table
 FINAL_SCORES$n_aliens[FINAL_SCORES$Island_Code==island_codes[i]]<-dim(ias)[1]			## writes the number of alien invasive species on an island into output table
+
+FINAL_SCORES$invasives[FINAL_SCORES$Island_Code==island_codes[i]]<-paste(ias$Scientific_Name, collapse=", ")		## writes the names of all invasive species on an island into output table
+FINAL_SCORES$invasives_erad[FINAL_SCORES$Island_Code==island_codes[i]]<-paste(ias$Scientific_Name[ias$EF==1], collapse=", ")		## writes the names of all invasive species that can be eradicated from an island into output table
+FINAL_SCORES$threatened[FINAL_SCORES$Island_Code==island_codes[i]]<-paste(targ$Scientific_name, collapse=", ")		## writes the names of all native threatened species on an island into output table
 
 
 
@@ -129,6 +170,13 @@ species_benefits$B_erad<-ifelse(species_benefits$pot==0,species_benefits$B_erad,
 FINAL_SCORES$CV_now[FINAL_SCORES$Island_Code==island_codes[i]]<-sum(species_benefits$B_now)				## CONSERVATION VALUE BEFORE ERADICATION = the sum of benefit values over all native species on an island
 FINAL_SCORES$CV_erad[FINAL_SCORES$Island_Code==island_codes[i]]<-sum(species_benefits$B_erad)				## CONSERVATION VALUE AFTER ERADICATION = the sum of benefit values over all native species on an island
 
+FINAL_SCORES$threatened_benefit[FINAL_SCORES$Island_Code==island_codes[i]]<-paste(species_benefits$Species[species_benefits$B_erad<species_benefits$B_now], collapse=", ")		## writes the names of all native species that benefit from eradication into output table
+
+FINAL_SCORES$sum_irreplace[FINAL_SCORES$Island_Code==island_codes[i]]<-sum(species_benefits$irep)		## SUM of all irreplaceability scores of all threatened species on an island
+FINAL_SCORES$sum_extrisk[FINAL_SCORES$Island_Code==island_codes[i]]<-sum(species_benefits$threat)		## SUM of all extinction risk probabilities of all threatened species on an island
+FINAL_SCORES$sum_severity[FINAL_SCORES$Island_Code==island_codes[i]]<-sum(species_benefits$imp_now)		## SUM of all severity of impact scores of all threatened species on an island
+FINAL_SCORES$sum_severity_erad[FINAL_SCORES$Island_Code==island_codes[i]]<-sum(species_benefits$imp_erad)	## SUM of all severity of impact scores of all threatened species on an island AFTER successful eradication
+
 
 }else{										## alternatively, if no native species are present
 FINAL_SCORES$CV_now[FINAL_SCORES$Island_Code==island_codes[i]]<-0		## CONSERVATION VALUE BEFORE ERADICATION = 0
@@ -144,10 +192,7 @@ FINAL_SCORES$CV_erad[FINAL_SCORES$Island_Code==island_codes[i]]<-0		## CONSERVAT
 ### subtract conservation value AFTER eradication from conservation value BEFORE eradication
 FINAL_SCORES$BENEFIT_SPECIFIC[FINAL_SCORES$Island_Code==island_codes[i]]<-(FINAL_SCORES$CV_now[FINAL_SCORES$Island_Code==island_codes[i]]-FINAL_SCORES$CV_erad[FINAL_SCORES$Island_Code==island_codes[i]])	## removed in February: *islands$NRR[islands$Island_Code==island_codes[i]]
 
-
 }													## close loop over all islands
-
-
 
 
 
@@ -160,4 +205,6 @@ OUTPUT<-merge(FINAL_SCORES, islands, by='Island_Code', all.x=T)			## create outp
 OUTPUT$General_Rank<-rank(-OUTPUT$CV_now, ties.method = "min")			## ranking based on benefit from eradication ALL invasive vertebrates					
 OUTPUT$Specific_Rank<-rank(-OUTPUT$BENEFIT_SPECIFIC, ties.method = "min")	## ranking based on benefit from eradication of feasible invasive ve
 OUTPUT<-OUTPUT[order(OUTPUT$Specific_Rank),]
-OUTPUT[1:20,c(18,8,9,2,3,6,7,12,15)]
+OUTPUT<-OUTPUT[!(OUTPUT$BENEFIT_SPECIFIC==0 & OUTPUT$BENEFIT_SPECIFIC==0),]	## reduce output to just those islands where eradication actually makes a difference
+OUTPUT[1:20,c(26,16,17,2,3,6,7)]								## quick screen view
+write.table(OUTPUT, "Global_species_prioritisation_final_ranking_no_area_restriction_June2016.csv", sep=",", row.names=F)		## export table
